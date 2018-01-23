@@ -2,7 +2,7 @@
 #include "opencv/cv.hpp"
 #include <opencv/ml.h>
 #include<ctime>
-//ggggggggggggggggggggdsfsdfsdf
+//ggggggggggggggggggggdsfsdfsdf // testing
 using namespace cv;
 using namespace std;
 
