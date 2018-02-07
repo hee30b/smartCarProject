@@ -14,9 +14,85 @@ using namespace cv;
 int interest_y = 168;  // mono.avi = 168  // school = 200 
 int interest_x = 0;
 
-void findandDrawContour(Mat& roi, char* windowName, int type);
 Mat preprocess(Mat& frame);
 void getMinMax(Mat& roi, double& min, double& max);
+void findandDrawContour(Mat& roi, char* windowName, int type);
+Point findLineAndVP(Mat& white, Mat& frame, float& prev_Rslope, float& prev_Lslope, Point intersectionPoint, int& leftKept, int& rightKept);
+
+
+
+
+int main() {
+	char title[100] = "lane.avi";
+	VideoCapture capture(title);
+
+	Mat frame, afterPreprocess;
+	//Mat originalFrame = frame.clone(); //중복 
+
+	int key, frameNum = 0, frame_rate = 30;
+	//vector<Point> io_prev_lanes; //쓰이지 않는 이름 
+
+	float prev_Rslope = 0, prev_Lslope = 0;
+	Point prev_intersectionPoint(0, 0);
+	int leftKept = 0, rightKept = 0;
+
+	// videoRead
+	while (1) {
+
+		if (!capture.read(frame))
+			break;
+
+		Mat originalFrame = frame.clone();
+		afterPreprocess = preprocess(frame);
+		//cout << "frame: " << frameNum;
+		prev_intersectionPoint = findLineAndVP(afterPreprocess, frame, prev_Rslope, prev_Lslope, prev_intersectionPoint, leftKept, rightKept);
+		//cout << endl; 
+		//isStopLine(originalFrame, prev_intersectionPoint, prev_Lslope, prev_Rslope);
+		char text[255];
+		sprintf(text, "frame: %d", (int)frameNum);
+
+		putText(frame, text, Point(10, 20), FONT_HERSHEY_COMPLEX_SMALL, 1, 255, 1);
+
+		imshow("frame", frame);
+
+		key = waitKey(frame_rate);
+		if (key == 32) {
+			if (frame_rate == 30)
+				frame_rate = 0;
+			else
+				frame_rate = 30;
+		}
+		else if (key == ']') {
+			capture.set(CV_CAP_PROP_POS_FRAMES, frameNum + 90);
+			frameNum += 90;
+			prev_Rslope = 0, prev_Lslope = 0;
+			leftKept = 0, rightKept = 0;
+		}
+		else if (key == '[') {
+			capture.set(CV_CAP_PROP_POS_FRAMES, frameNum - 90);
+			frameNum -= 90;
+			prev_Rslope = 0, prev_Lslope = 0;
+			leftKept = 0, rightKept = 0;
+		}
+		else if (key == 'd') {
+			capture.set(CV_CAP_PROP_POS_FRAMES, frameNum + 30);
+			frameNum += 30;
+			prev_Rslope = 0, prev_Lslope = 0;
+			leftKept = 0, rightKept = 0;
+		}
+		else if (key == 'a') {
+			capture.set(CV_CAP_PROP_POS_FRAMES, frameNum - 30);
+			frameNum -= 30;
+			prev_Rslope = 0, prev_Lslope = 0;
+			leftKept = 0, rightKept = 0;
+		}
+		else if (key == 27) {
+			break;
+		}
+		frameNum++;
+	}
+	return 0;
+}
 
 Mat preprocess(Mat& frame) {
 	Mat contourCanny, matForContour, contour;
@@ -61,7 +137,7 @@ Mat preprocess(Mat& frame) {
 	/***************** Canny ********************/
 	contour = matForContour(rec3_4); //grayscale image
 									 //Canny(contour, contourCanny, 100, 200);
-	Canny(contour, contourCanny, (contour.rows + contour.cols) / 4, (contour.rows + contour.cols) / 2);
+	Canny(contour, contourCanny, 100, 200);
 
 	dilate(contourCanny, contourCanny, Mat(), Point(-1, -1), 5);
 	erode(contourCanny, contourCanny, Mat(), Point(-1, -1), 5);
@@ -77,20 +153,11 @@ Mat preprocess(Mat& frame) {
 	erode(andOperation, andOperation, Mat(), Point(-1, -1), 4);
 	dilate(andOperation, andOperation, Mat(), Point(-1, -1), 4);
 	erode(andOperation, andOperation, Mat(), Point(-1, -1), 4);
-
+		
 	// findContours 함수는 원본 이미지를 변경시키기 때문에 원본이미지를 복사하여 사용해야 한다.
 	findandDrawContour(andOperation, contourWindow, 0);
-
 	return andOperation;
 }
-
-
-
-
-
-
-
-
 
 void findandDrawContour(Mat &roi, char* windowName, int type) {
 	vector<vector<Point> > contours;
@@ -158,7 +225,7 @@ void findandDrawContour(Mat &roi, char* windowName, int type) {
 
 Point findLineAndVP(Mat& white, Mat& frame, float& prev_Rslope, float& prev_Lslope, Point intersectionPoint, int& leftKept, int& rightKept) {
 	Mat canny;
-	Canny(white, canny, (white.rows + white.cols) / 4, (white.rows + white.cols) / 2, 3);
+	Canny(white, canny, 150, 300, 3);
 
 	int halfWidth = canny.cols / 2;
 
@@ -441,76 +508,4 @@ void getMinMax(Mat& roi, double& min, double& max) {
 
 	// max value = mean + stdDev
 	max = meanVal + 3 * stdDevVal; // maxPixelVal;
-}
-
-int main() {
-	char title[100] = "mono.wmv";
-	VideoCapture capture(title);
-
-	Mat frame, afterPreprocess;
-	//Mat originalFrame = frame.clone(); //중복 
-
-	int key, frameNum = 0, frame_rate = 30;
-	//vector<Point> io_prev_lanes; //쓰이지 않는 이름 
-
-	float prev_Rslope = 0, prev_Lslope = 0;
-	Point prev_intersectionPoint(0, 0);
-	int leftKept = 0, rightKept = 0;
-
-	// videoRead
-	while (1) {
-
-		if (!capture.read(frame))
-			break;
-
-		Mat originalFrame = frame.clone();
-		afterPreprocess = preprocess(frame);
-		//cout << "frame: " << frameNum;
-		prev_intersectionPoint = findLineAndVP(afterPreprocess, frame, prev_Rslope, prev_Lslope, prev_intersectionPoint, leftKept, rightKept);
-		//cout << endl; 
-		//isStopLine(originalFrame, prev_intersectionPoint, prev_Lslope, prev_Rslope);
-		char text[255];
-		sprintf(text, "frame: %d", (int)frameNum);
-
-		putText(frame, text, Point(10, 20), FONT_HERSHEY_COMPLEX_SMALL, 1, 255, 1);
-
-		imshow("frame", frame);
-
-		key = waitKey(frame_rate);
-		if (key == 32) {
-			if (frame_rate == 30)
-				frame_rate = 0;
-			else
-				frame_rate = 30;
-		}
-		else if (key == ']') {
-			capture.set(CV_CAP_PROP_POS_FRAMES, frameNum + 90);
-			frameNum += 90;
-			prev_Rslope = 0, prev_Lslope = 0;
-			leftKept = 0, rightKept = 0;
-		}
-		else if (key == '[') {
-			capture.set(CV_CAP_PROP_POS_FRAMES, frameNum - 90);
-			frameNum -= 90;
-			prev_Rslope = 0, prev_Lslope = 0;
-			leftKept = 0, rightKept = 0;
-		}
-		else if (key == 'd') {
-			capture.set(CV_CAP_PROP_POS_FRAMES, frameNum + 30);
-			frameNum += 30;
-			prev_Rslope = 0, prev_Lslope = 0;
-			leftKept = 0, rightKept = 0;
-		}
-		else if (key == 'a') {
-			capture.set(CV_CAP_PROP_POS_FRAMES, frameNum - 30);
-			frameNum -= 30;
-			prev_Rslope = 0, prev_Lslope = 0;
-			leftKept = 0, rightKept = 0;
-		}
-		else if (key == 27) {
-			break;
-		}
-		frameNum++;
-	}
-	return 0;
 }
